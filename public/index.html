@@ -11,6 +11,8 @@
         .modal-active { opacity: 1; pointer-events: auto; transform: scale(1); }
         .modal-hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
         input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        @keyframes pulse-gold { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .live-indicator { animation: pulse-gold 2s infinite; }
     </style>
 </head>
 <body class="text-slate-200 font-sans antialiased">
@@ -19,34 +21,35 @@
         <header class="flex justify-between items-center mb-12">
             <div>
                 <h1 class="text-2xl font-bold text-white flex items-center gap-2">
-                    <span class="text-yellow-500 text-3xl">●</span> Historial de Tasas
+                    <span class="text-yellow-500 text-3xl live-indicator">●</span> Historial de Tasas
                 </h1>
-                <p class="text-slate-500 text-sm" id="ultima-actualizacion">Sincronizando datos...</p>
+                <p class="text-slate-500 text-sm font-medium" id="ultima-actualizacion">Sincronizando con Caracas...</p>
             </div>
-            <div class="bg-slate-800 p-1 rounded-xl flex gap-1 shadow-lg">
+            <div class="bg-slate-800 p-1 rounded-xl flex gap-1 shadow-lg border border-slate-700">
                 <button class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-md">Inicio</button>
                 <button onclick="toggleCalculadora()" class="text-slate-400 px-6 py-2 text-sm font-bold hover:text-white transition">Calculadora</button>
             </div>
         </header>
 
         <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            <div class="animate-pulse bg-slate-800 h-48 rounded-[2rem]"></div>
+            <div class="animate-pulse bg-slate-800 h-48 rounded-[2.5rem]"></div>
             <div class="animate-pulse bg-slate-800 h-48 rounded-[2rem]"></div>
             <div class="animate-pulse bg-slate-800 h-48 rounded-[2rem]"></div>
         </div>
 
         <div class="mb-6 flex justify-between items-end">
             <h2 class="text-xl font-bold text-white">Historial Reciente</h2>
-            <span class="text-slate-500 text-xs uppercase font-bold tracking-widest">Últimos 10 registros</span>
+            <span class="text-slate-500 text-xs uppercase font-black tracking-widest">Servidor: Caracas, Vzla</span>
         </div>
 
         <div class="bg-slate-800/50 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl backdrop-blur-md">
             <table class="w-full text-left">
                 <thead>
                     <tr class="bg-slate-800/80 text-slate-400 text-xs uppercase">
-                        <th class="p-5 font-bold">Fecha y Hora</th>
+                        <th class="p-5 font-bold">Fecha y Hora (Vzla)</th>
                         <th class="p-5 font-bold">Fuente</th>
                         <th class="p-5 font-bold">Moneda</th>
+                        <th class="p-5 font-bold text-center">Variación</th>
                         <th class="p-5 font-bold text-right">Monto (VES)</th>
                     </tr>
                 </thead>
@@ -57,11 +60,10 @@
 
     <div id="modal-calc" class="modal-hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 transition-all duration-300 backdrop-blur-md p-4">
         <div class="bg-white text-slate-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden transform transition-all">
-            
             <div class="p-8 pb-4 flex justify-between items-start">
                 <div>
                     <h3 class="text-3xl font-black text-slate-800 tracking-tight">Calculadora</h3>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Conversión en tiempo real</p>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Sincronizado con tasas reales</p>
                 </div>
                 <button onclick="toggleCalculadora()" class="bg-slate-100 p-2 rounded-full hover:bg-red-100 hover:text-red-500 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -70,11 +72,11 @@
 
             <div class="px-8 mb-6">
                 <div class="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 focus-within:border-blue-400 transition-all">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto a convertir (USD/EUR)</label>
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Monto a convertir</label>
                     <div class="flex items-center">
                         <input type="number" id="input-monto" value="100" oninput="calcular()" 
                             class="bg-transparent w-full text-5xl font-black focus:outline-none text-slate-800">
-                        <span class="text-2xl font-bold text-slate-300">REF</span>
+                        <span class="text-2xl font-bold text-slate-300">USD</span>
                     </div>
                 </div>
             </div>
@@ -111,7 +113,6 @@
     </div>
 
     <script>
-        // Memoria para las tasas que vienen de la base de datos
         let tasas = { bcv_usd: 0, bcv_eur: 0, binance: 0 };
 
         async function cargarDatos() {
@@ -121,7 +122,7 @@
                 const datos = result.data;
                 if (!datos || datos.length === 0) return;
 
-                // Capturamos los precios más recientes para la calculadora
+                // Asignar tasas para calculadora
                 const regBcvUsd = datos.find(d => d.fuente === 'BCV' && d.moneda === 'USD');
                 const regBcvEur = datos.find(d => d.fuente === 'BCV' && d.moneda === 'EUR');
                 const regP2p = datos.find(d => d.fuente === 'Binance' && d.moneda === 'USD');
@@ -130,8 +131,8 @@
                 tasas.bcv_eur = regBcvEur ? regBcvEur.precio : 0;
                 tasas.binance = regP2p ? regP2p.precio : 0;
 
-                // Actualizar interfaz principal
-                document.getElementById('ultima-actualizacion').innerText = `Actualizado: ${new Date(datos[0].fecha).toLocaleString()}`;
+                // SINCRONIZACIÓN DE FECHA: Toma el valor directo de tu index.js
+                document.getElementById('ultima-actualizacion').innerText = `Actualizado: ${datos[0].fecha}`;
                 
                 const container = document.getElementById('cards-container');
                 container.innerHTML = '';
@@ -144,71 +145,79 @@
                 config.forEach(item => {
                     const reg = datos.find(d => d.fuente === item.fuente && d.moneda === item.moneda);
                     if (reg) {
+                        const varColor = reg.variacion > 0 ? 'text-green-400' : (reg.variacion < 0 ? 'text-red-400' : 'text-slate-500');
+                        const varIcon = reg.variacion > 0 ? '▲' : (reg.variacion < 0 ? '▼' : '●');
+                        
+                        // Extraemos la hora para la card (parte después de la coma)
+                        const horaExtract = reg.fecha.includes(',') ? reg.fecha.split(',')[1].trim() : reg.fecha;
+
                         container.innerHTML += `
                             <div class="card-gradient p-8 rounded-[2.5rem] border-t-4 ${item.color} shadow-2xl transform transition hover:-translate-y-2">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div class="w-10 h-10 rounded-full ${item.icon} text-slate-900 flex items-center justify-center font-black text-xs shadow-inner">${item.fuente[0]}</div>
-                                    <span class="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">${item.label}</span>
+                                <div class="flex justify-between items-start mb-6">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-full ${item.icon} text-slate-900 flex items-center justify-center font-black text-xs shadow-inner">${item.fuente[0]}</div>
+                                        <span class="text-slate-400 text-xs font-black uppercase tracking-[0.2em]">${item.label}</span>
+                                    </div>
+                                    <span class="${varColor} text-sm font-black">${varIcon} ${Math.abs(reg.variacion).toFixed(2)}%</span>
                                 </div>
                                 <div class="flex items-baseline gap-2">
                                     <h2 class="text-6xl font-black text-white tracking-tighter">${reg.precio.toFixed(2)}</h2>
                                     <span class="text-2xl font-bold text-slate-500">Bs.</span>
                                 </div>
                                 <div class="mt-8 pt-4 border-t border-slate-700/50 flex justify-between text-[10px] text-slate-500 font-black uppercase">
-                                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> Tasa Oficial</span>
-                                    <span>${new Date(reg.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full ${reg.variacion >= 0 ? 'bg-green-500' : 'bg-red-500'}"></span> Sincronizado</span>
+                                    <span>${horaExtract}</span>
                                 </div>
                             </div>
                         `;
                     }
                 });
 
-                // Tabla
                 const tabla = document.getElementById('tabla-body');
                 tabla.innerHTML = '';
                 datos.forEach(row => {
+                    const varColor = row.variacion > 0 ? 'text-green-400' : (row.variacion < 0 ? 'text-red-400' : 'text-slate-500');
+                    const varIcon = row.variacion > 0 ? '▲' : (row.variacion < 0 ? '▼' : '●');
+
                     tabla.innerHTML += `
                         <tr class="hover:bg-slate-700/30 transition group">
-                            <td class="p-5 text-slate-400 text-xs font-mono font-bold">${new Date(row.fecha).toLocaleString()}</td>
+                            <td class="p-5 text-slate-400 text-xs font-mono font-bold">${row.fecha}</td>
                             <td class="p-5 font-black text-white group-hover:text-blue-400 transition-colors">${row.fuente}</td>
                             <td class="p-5"><span class="bg-slate-700/50 px-4 py-1 rounded-full text-[10px] font-black text-slate-300 border border-slate-600">${row.moneda}</span></td>
+                            <td class="p-5 text-center ${varColor} font-bold text-xs">${varIcon} ${Math.abs(row.variacion).toFixed(2)}%</td>
                             <td class="p-5 text-right font-black text-xl text-emerald-400">${row.precio.toFixed(2)} <span class="text-[10px] text-slate-600 ml-1">VES</span></td>
                         </tr>
                     `;
                 });
 
                 calcular();
-            } catch (e) { console.error("Error en Frontend:", e); }
+            } catch (e) { console.error("Error cargando datos:", e); }
         }
 
-        // LÓGICA CALCULADORA
+        // Lógica Calculadora
         function toggleCalculadora() {
             const modal = document.getElementById('modal-calc');
             modal.classList.toggle('modal-active');
             modal.classList.toggle('modal-hidden');
         }
-
         function addNum(n) {
             const input = document.getElementById('input-monto');
             input.value = input.value === "0" ? n : input.value + n;
             calcular();
         }
-
         function limpiar() {
             document.getElementById('input-monto').value = "0";
             calcular();
         }
-
         function calcular() {
             const monto = parseFloat(document.getElementById('input-monto').value) || 0;
-            // Cálculo para las 3 monedas
             document.getElementById('res-bcv').innerText = (monto * tasas.bcv_usd).toLocaleString('es-VE', {minimumFractionDigits: 2});
             document.getElementById('res-p2p').innerText = (monto * tasas.binance).toLocaleString('es-VE', {minimumFractionDigits: 2});
             document.getElementById('res-euro').innerText = (monto * tasas.bcv_eur).toLocaleString('es-VE', {minimumFractionDigits: 2});
         }
 
         cargarDatos();
-        setInterval(cargarDatos, 60000);
+        setInterval(cargarDatos, 30000);
     </script>
 </body>
 </html>
