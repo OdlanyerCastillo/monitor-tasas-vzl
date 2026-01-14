@@ -1,16 +1,18 @@
 const express = require('express');
+const path = require('path');
 const { db } = require('./database'); // Importamos la conexión a la DB
 const app = express();
-// Servir archivos estáticos desde la carpeta 'public'
-app.use(express.static('public'));
-const PORT = 3000;
+
+// 1. IMPORTANTE: Servir archivos estáticos DESDE la carpeta 'public'
+// Esto permite que el navegador encuentre el index.html, CSS y JS del frontend
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Middleware para permitir que el servidor entienda JSON
 app.use(express.json());
 
-// RUTA PRINCIPAL: Para probar que el servidor funciona
+// 2. RUTA PRINCIPAL: Ahora enviamos el archivo index.html físicamente
 app.get('/', (req, res) => {
-    res.send('<h1>Servidor de Tasas Activo</h1><p>Usa /api/tasas para ver los datos.</p>');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // API ENDPOINT: Aquí es donde el Frontend buscará la información
@@ -23,7 +25,7 @@ app.get('/api/tasas', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        // Respondemos con los datos en formato JSON (lo que el navegador entiende)
+        // Respondemos con los datos en formato JSON
         res.json({
             status: "success",
             data: rows
@@ -31,7 +33,8 @@ app.get('/api/tasas', (req, res) => {
     });
 });
 
-// INICIAR SERVIDOR
+// El puerto se ajusta dinámicamente para Vercel o local (3000)
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
